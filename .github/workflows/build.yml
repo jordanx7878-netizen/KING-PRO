@@ -1,0 +1,52 @@
+name: Build KING PRO APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "*.zip"
+      - ".github/workflows/build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Extrair projeto
+        run: |
+          mkdir -p project
+          unzip -q *.zip -d project
+
+      - name: Encontrar projeto Android
+        run: |
+          SETTINGS=$(find project -name "settings.gradle*" -type f | head -n 1)
+          if [ -z "$SETTINGS" ]; then
+            echo "Projeto Android não encontrado"
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$SETTINGS")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Compilar APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KING-PRO-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
